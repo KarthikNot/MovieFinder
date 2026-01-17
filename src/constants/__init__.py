@@ -1,14 +1,12 @@
 import os
 
-MOVIES_DATASET_PATH = os.path.join(os.getcwd(), 'data', 'movies_metadata.csv')
-KEYWORDS_DATASET_PATH = os.path.join(os.getcwd(), 'data', 'keywords.csv')
-CREDITS_DATASET_PATH = os.path.join(os.getcwd(), 'data', 'credits.csv')
+MOVIES_DATASET_PATH = os.path.join(os.getcwd(), 'data', 'TMDB_movie_dataset_v11.csv')
 PREPROCESSED_DATASET_PATH = os.path.join(os.getcwd(), 'data', 'preprocessed_dataset.csv')
 
 COLUMNS_TO_DROP = [
-    'adult', 'belongs_to_collection', 'budget', 'homepage', 'imdb_id', 'runtime', 
-    'tagline', 'original_language', 'popularity', 'poster_path', 'revenue', 
-    'vote_average', 'vote_count', 'video'
+    'adult', 'budget', 'backdrop_path', 'homepage', 'imdb_id', 
+    'runtime', 'tagline', 'popularity', 'revenue', 'vote_average', 
+    'vote_count', 'original_language'
 ]
 
 MOVIES_MAP_PATH = os.path.join(os.getcwd(), 'src', 'constants', 'movies_map.py')
