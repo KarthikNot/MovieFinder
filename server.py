@@ -31,11 +31,11 @@ def recommend_movies(selected_movies : str, top_n : int) -> List[str]:
 
         top_indices = np.argsort(sim_scores)[-top_n:][::-1]
 
-        top_movies = preprocessed_data.loc[top_indices, 'title'].tolist()
-        
+        top_movies = preprocessed_data.loc[top_indices, ['title', 'poster_path']]
+
         st.info(f"Top Indices: {[int(index) for index in top_indices]}")
         st.info(f"Top Movies: {[str(movie) for movie in top_movies]}")
-        
+
         return top_movies
     except Exception as e:
         st.error(f"An error occured: {str(e)}")
@@ -94,9 +94,9 @@ def main():
                 status.update(label="Recommendations Ready!", state="complete", expanded=False)
                 st.subheader(f"Because you liked {selected_movie}:")
                 cols = st.columns(5)
-                for i, movie in enumerate(recommendations):
+                for i, (movie, poster_path) in recommendations.iterrows():
                     with cols[i % 5]:
-                        # st.image("https://via.placeholder.com/150x225?text=Movie+Poster") # Replace with real poster URL
+                        st.image(f"https://image.tmdb.org/t/p/w500/{poster_path}") # Replace with real poster URL
                         st.markdown(f"**{movie}**")
             else:
                 st.warning("No similar movies found.")
