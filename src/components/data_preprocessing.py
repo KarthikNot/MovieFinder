@@ -1,7 +1,8 @@
 import os
 import re
 import pandas as pd
-from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 from src.logger import logger
 from src.constants import MOVIES_DATASET_PATH, COLUMNS_TO_DROP, PREPROCESSED_DATASET_PATH
 
@@ -9,27 +10,43 @@ class DataPreprocessing:
     def __init__(self):
         
         self.movies_dataset_path = MOVIES_DATASET_PATH
-        self.snowball_stemmer = SnowballStemmer(language = 'english', ignore_stopwords = True)
+        self.stop_words = set(stopwords.words('english'))
 
-    
+
     def clean_tags(self, tags) -> str | None:
         try:
-            cleaned = []
             if not isinstance(tags, list):
-                return None
+                return ""
+
+            cleaned = []
+
             for tag in tags:
-                tag = tag.lower()
                 tag = re.sub(r'[^a-z0-9\s]', '', tag)
-                tag = re.sub(r'\s+', ' ', tag).strip()
-                tag = self.snowball_stemmer.stem(tag)
-                if tag:
-                    cleaned.append(tag)
+                tokens = word_tokenize(tag)
+                tokens = [t for t in tokens if t not in self.stop_words]
+                cleaned.extend(tokens)
+
             return " ".join(cleaned)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}", exc_info = True)
         return None
 
-    
+
+    @staticmethod
+    def preprocess_tags(text, separator=" ") -> str:
+        try:
+            if not isinstance(text, str):
+                text = str(text)
+
+            text = text.lower()
+            texts = text.split(separator)
+
+            return ' '.join([t.replace(' ', '') for t in texts])
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}", exc_info = True)
+        return ""
+
+
     def removing_null_values(self, dataframe: pd.DataFrame, subset = None) -> pd.DataFrame:
         try:
             if dataframe.empty:
@@ -41,8 +58,8 @@ class DataPreprocessing:
         except Exception as e:
             logger.warning(f"An error occurred: {str(e)}", exc_info=True)
         return dataframe
-    
-    
+
+
     def removing_duplicate_values(self, dataframe: pd.DataFrame, subset = None) -> pd.DataFrame:
         try:
             if dataframe.empty:
@@ -54,14 +71,14 @@ class DataPreprocessing:
         except Exception as e:
             logger.warning(f"An error occurred: {str(e)}", exc_info=True)
         return dataframe
-    
-    
+
+
     def preprocess_dataframe(self) -> bool:
         try:
             if os.path.exists(PREPROCESSED_DATASET_PATH):
                 logger.info("Preprocessed dataframe exists.")
                 return True
-            
+
             if not os.path.exists(self.movies_dataset_path):
                 logger.info("Movies dataset does not exists.")
                 return False
@@ -69,11 +86,13 @@ class DataPreprocessing:
             if movies.empty: 
                 logger.error("Movies dataset is empty")
                 return False
-            
+
             logger.info("Movies dataframe loaded.")
 
-            df = movies.drop(columns=[c for c in COLUMNS_TO_DROP if c in movies.columns])
-            
+            df = movies[movies['adult'] == False]
+
+            df = df.drop(columns=[c for c in COLUMNS_TO_DROP if c in df.columns])
+
             df = self.removing_null_values(df, subset = 'title')
             df = self.removing_duplicate_values(df, subset = 'title')
             df = self.removing_null_values(df, subset = 'overview')
@@ -81,50 +100,49 @@ class DataPreprocessing:
             df = self.removing_null_values(df, subset = 'poster_path')
             df = self.removing_duplicate_values(df, subset = 'poster_path')
             df = self.removing_null_values(df, subset = 'release_date')
-            
+
             df = df[pd.to_numeric(df['id'], errors='coerce').notna()]
-            
+
             if not 'id' in df.columns:
                 logger.info(f"'id' column doesn't exist dataframe.")
                 return False
+
             df['id'] = df['id'].astype(int)
-            
+
             logger.info("Data cleaning has started.")
-            
-            if 'genres' in df.columns:
-                df['genres'] = df['genres'].apply(lambda x : str(x).split(','))
-            if 'production_companies' in df.columns:
-                df['production_companies'] = df['production_companies'].apply(lambda x : str(x).split(','))
-            if 'production_countries' in df.columns:
-                df['production_countries'] = df['production_countries'].apply(lambda x : str(x).split(','))
-            if 'spoken_languages' in df.columns:
-                df['spoken_languages'] = df['spoken_languages'].apply(lambda x : str(x).split(','))
-            if 'keywords' in df.columns:
-                df['keywords'] = df['keywords'].apply(lambda x : str(x).split(','))
-            if 'overview' in df.columns:
-                df['overview'] = df['overview'].apply(lambda x: str(x).split())
-            
-            df['all_tags'] = df['all_tags'] = df['overview'] + df['genres'] + df['production_companies'] + df['production_countries'] + df['spoken_languages'] + df['keywords']
-            df = df[['id', 'title', 'poster_path', 'all_tags', 'release_date', 'status']]
-            
-            df['all_tags'] = df['all_tags'].apply(self.clean_tags)
-            
+
+            df['genres'] = df['genres'].apply(self.preprocess_tags, separator = ',')
+            df['keywords'] = df['keywords'].apply(self.preprocess_tags, separator = ',')
+            df['overview'] = df['overview'].apply(self.preprocess_tags)
+
+            cols = [
+                'title', 'genres', 'keywords', 'overview',
+            ]
+
+            df['all_tags'] = df[cols].astype(str).agg(' '.join, axis=1)
+            df['all_tags'] = df['all_tags'].apply(lambda x: x.lower())
+
+            final_df = df[['id', 'title', 'poster_path', 'all_tags', 'release_date', 'status']].copy()
+            final_df['all_tags'] = final_df['all_tags'].apply(lambda x: x.split())
+
+            final_df['all_tags'] = final_df['all_tags'].apply(self.clean_tags)
+
             if not 'release_date' in df.columns:
                 logger.info(f"'release_date' column not in df")
+            else:
+                final_df['year'] = final_df['release_date'].str[:4].astype(int)
+                final_df = final_df[final_df['year'] >= 1990]
 
-            df['year'] = df['release_date'].str[:4].astype(int)
-            df = df[df['year'] >= 1975]
-
-            df = df[(df['status'] != 'Canceled') | (df['status'] != 'Planned')]
+            final_df = final_df[(final_df['status'] == 'Released')]
             
             logger.info("Dataframe cleaning completed.")
             
-            df.to_csv(PREPROCESSED_DATASET_PATH, index = False, encoding = 'utf-8')
+            final_df.to_csv(PREPROCESSED_DATASET_PATH, index = False, encoding = 'utf-8')
             return True
         except Exception as e:
             logger.warning(f"An error occurred: {str(e)}", exc_info=True)
         return False
-    
+
 if __name__ == '__main__':
     obj = DataPreprocessing()
     obj.preprocess_dataframe()
