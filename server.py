@@ -31,15 +31,28 @@ def recommend_movies(selected_movies : str, top_n : int) -> List[str]:
 
         top_indices = np.argsort(sim_scores)[-top_n:][::-1]
 
-        top_movies = preprocessed_data.loc[top_indices, 'title'].tolist()
-        
+        top_movies = preprocessed_data.loc[top_indices, ['title', 'poster_path']]
+
         st.info(f"Top Indices: {[int(index) for index in top_indices]}")
         st.info(f"Top Movies: {[str(movie) for movie in top_movies]}")
-        
+
         return top_movies
     except Exception as e:
         st.error(f"An error occured: {str(e)}")
     return []
+
+
+@st.cache_data
+def get_movie_names():
+    try:
+        if not os.path.exists(PREPROCESSED_DATASET_PATH):
+            return []
+        df = pd.read_csv(PREPROCESSED_DATASET_PATH, encoding='utf-8')
+        return sorted(df['title'].unique())
+    except Exception as e:
+        st.error(f"An error occured: {str(e)}")
+        return []
+
 
 def main():
     st.set_page_config(
@@ -77,7 +90,7 @@ def main():
         
         selected_movie = st.selectbox(
             'Search or select a movie you liked:',
-            options=list(preprocessed_data['title'].unique()),
+            options=get_movie_names(),
             index=None,
             placeholder="Type a movie name..."
         )
@@ -90,13 +103,18 @@ def main():
                 recommendations = recommend_movies(selected_movie, top_n=num_rec)
 
             # grid la supiyyu
-            if recommendations:
+            if not recommendations.empty:
                 status.update(label="Recommendations Ready!", state="complete", expanded=False)
                 st.subheader(f"Because you liked {selected_movie}:")
+
                 cols = st.columns(5)
-                for i, movie in enumerate(recommendations):
-                    with cols[i % 5]:
-                        # st.image("https://via.placeholder.com/150x225?text=Movie+Poster") # Replace with real poster URL
+
+                for idx, (movie, poster_path) in enumerate(recommendations.itertuples(index=False)):
+                    with cols[idx % 5]:
+                        if poster_path:
+                            st.image(f"https://image.tmdb.org/t/p/w500{poster_path}")
+                        else:
+                            st.write("No Image 🎬")
                         st.markdown(f"**{movie}**")
             else:
                 st.warning("No similar movies found.")
