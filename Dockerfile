@@ -9,5 +9,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8601
-
-CMD sh -c "python src/pipelines/training_pipeline.py && streamlit run server.py --server.port=8601"

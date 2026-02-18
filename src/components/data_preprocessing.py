@@ -1,8 +1,8 @@
 import os
 import re
+import nltk
 import pandas as pd
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 from src.logger import logger
 from src.constants import MOVIES_DATASET_PATH, COLUMNS_TO_DROP, PREPROCESSED_DATASET_PATH
 
@@ -10,21 +10,25 @@ class DataPreprocessing:
     def __init__(self):
         
         self.movies_dataset_path = MOVIES_DATASET_PATH
+        nltk.download('stopwords')
+        nltk.download('punkt_tab')
         self.stop_words = set(stopwords.words('english'))
+        self._pattern = re.compile(r"[^a-z0-9\s]")
 
 
     def clean_tags(self, tags) -> str | None:
         try:
             if not isinstance(tags, list):
                 return ""
-
-            cleaned = []
-
-            for tag in tags:
-                tag = re.sub(r'[^a-z0-9\s]', '', tag)
-                tokens = word_tokenize(tag)
-                tokens = [t for t in tokens if t not in self.stop_words]
-                cleaned.extend(tokens)
+            
+            stop_words = self.stop_words  # local reference (faster)
+            
+            cleaned = [
+                token
+                for tag in tags
+                for token in self._pattern.sub("", tag.lower()).split()
+                if token and token not in stop_words
+            ]
 
             return " ".join(cleaned)
         except Exception as e:

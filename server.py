@@ -1,27 +1,27 @@
 import os
 import pickle
-import pandas as pd
 import numpy as np
+import pandas as pd
 import streamlit as st
-from src.constants import *
 from typing import List
+from src.constants import *
 from sklearn.metrics.pairwise import cosine_similarity
 
 def recommend_movies(selected_movies : str, top_n : int) -> List[str]:
     try:
-        
+
         if not os.path.exists(PREPROCESSED_DATASET_PATH):
             st.info("Preprocessed dataset doesn't exist.")
             return []
-        
+
         preprocessed_data = pd.read_csv(PREPROCESSED_DATASET_PATH, encoding = 'utf-8')
-        
+
         movie_id = preprocessed_data[preprocessed_data['title'] == selected_movies]['id'].values[0]
         st.info(f"Selected movie_id: {movie_id}")
-        
+
         row_idx = preprocessed_data[preprocessed_data['id'] == movie_id].index
         st.info(f"got the movie: {row_idx}")
-        
+
         with open(VECTORIZED_MATRIX, 'rb') as file:
             vectors = pickle.load(file)
 
@@ -48,7 +48,7 @@ def get_movie_names():
         if not os.path.exists(PREPROCESSED_DATASET_PATH):
             return []
         df = pd.read_csv(PREPROCESSED_DATASET_PATH, encoding='utf-8')
-        return sorted(df['title'].unique())
+        return list(df['title'].unique())
     except Exception as e:
         st.error(f"An error occured: {str(e)}")
         return []
@@ -61,7 +61,6 @@ def main():
         layout='wide'
     )
 
-    # Custom CSS for a polished look
     st.markdown("""
         <style>
         .main { background-color: #0e1117; }
@@ -85,9 +84,7 @@ def main():
                 body = "Preprocessed dataframe doesn't exist.",
                 width = 'stretch'
             )
-        
-        preprocessed_data = pd.read_csv(PREPROCESSED_DATASET_PATH, encoding = 'utf-8')
-        
+
         selected_movie = st.selectbox(
             'Search or select a movie you liked:',
             options=get_movie_names(),
@@ -118,7 +115,7 @@ def main():
                         st.markdown(f"**{movie}**")
             else:
                 st.warning("No similar movies found.")
-        
+
         elif btn and not selected_movie:
             st.error("Please select a movie first!")
 
