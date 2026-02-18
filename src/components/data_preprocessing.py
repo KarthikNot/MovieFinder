@@ -20,14 +20,12 @@ class DataPreprocessing:
         try:
             if not isinstance(tags, list):
                 return ""
-            
-            stop_words = self.stop_words  # local reference (faster)
-            
+
             cleaned = [
                 token
                 for tag in tags
                 for token in self._pattern.sub("", tag.lower()).split()
-                if token and token not in stop_words
+                if token and token not in self.stop_words
             ]
 
             return " ".join(cleaned)
@@ -37,15 +35,16 @@ class DataPreprocessing:
 
 
     @staticmethod
-    def preprocess_tags(text, separator=" ") -> str:
+    def preprocess_tags(text, separator=" ", repetitions=1) -> str:
         try:
             if not isinstance(text, str):
                 text = str(text)
 
             text = text.lower()
             texts = text.split(separator)
-
-            return ' '.join([t.replace(' ', '') for t in texts])
+            cleaned = [t.strip().replace(' ', '') for t in texts if t.strip()]
+            
+            return ' '.join(cleaned * repetitions)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}", exc_info = True)
         return ""
@@ -115,12 +114,19 @@ class DataPreprocessing:
 
             logger.info("Data cleaning has started.")
 
-            df['genres'] = df['genres'].apply(self.preprocess_tags, separator = ',')
-            df['keywords'] = df['keywords'].apply(self.preprocess_tags, separator = ',')
-            df['overview'] = df['overview'].apply(self.preprocess_tags)
+            df['genres'] = df['genres'].apply(self.preprocess_tags, separator = ',', repetitions = 2)
+            df['production_companies'] = df['production_companies'].apply(self.preprocess_tags, separator = ',', repetitions = 3)
+            df['spoken_languages'] = df['spoken_languages'].apply(self.preprocess_tags, separator = ',', repetitions = 3)
+            df['keywords'] = df['keywords'].apply(self.preprocess_tags, separator = ',', repetitions = 2)
+            df['overview'] = df['overview'].apply(self.preprocess_tags, repetitions = 1)
 
             cols = [
-                'title', 'genres', 'keywords', 'overview',
+                'title',
+                'genres',
+                'keywords',
+                'overview',
+                'production_companies',
+                'spoken_languages'
             ]
 
             df['all_tags'] = df[cols].astype(str).agg(' '.join, axis=1)

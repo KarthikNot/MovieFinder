@@ -85,12 +85,22 @@ def main():
                 width = 'stretch'
             )
 
-        selected_movie = st.selectbox(
-            'Search or select a movie you liked:',
-            options=get_movie_names(),
-            index=None,
-            placeholder="Type a movie name..."
-        )
+        movie_names = get_movie_names()
+
+        search_query = st.text_input("Search for a movie:")
+
+        selected_movie = None
+
+        if search_query:
+            matches = [
+                m for m in movie_names
+                if search_query.lower() in m.lower()
+            ][:20]  # limit results
+
+            selected_movie = st.selectbox(
+                "Select from matches:",
+                matches
+            )
 
         btn = st.button("Recommend", type="primary", width = 'stretch')
 
