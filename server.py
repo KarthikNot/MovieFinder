@@ -5,7 +5,9 @@ import pandas as pd
 import streamlit as st
 from typing import List
 from src.constants import *
+from src.pipelines.training_pipeline import ModelInference
 from sklearn.metrics.pairwise import cosine_similarity
+import time
 
 def recommend_movies(selected_movies : str, top_n : int) -> List[str]:
     try:
@@ -71,6 +73,30 @@ def main():
     st.title("🎬 Movie Recommendation System")
     st.caption("Find your next favorite movie using Content-Based Filtering.")
 
+    if not os.path.exists(PREPROCESSED_DATASET_PATH):
+        st.warning("Preprocessed dataset is missing. Initializing the pipeline...")
+
+        temp = ModelInference()
+
+        with st.spinner("Downloading dataset..."):
+            try:
+                temp.download_dataset()
+                time.sleep(1)
+            except Exception as e:
+                st.error(f"Failed to download dataset: {e}")
+                return
+
+        with st.spinner("Running the preprocessing pipeline..."):
+            try:
+                temp.end_to_end_pipeline()
+                time.sleep(1)
+            except Exception as e:
+                st.error(f"Failed to run the pipeline: {e}")
+                return
+
+        del temp
+        st.success("Pipeline completed successfully! You can now search for movies.")
+
     try:
 
         # Sidebar for settings/info
@@ -78,7 +104,6 @@ def main():
             st.header("Settings")
             num_rec = st.slider("Number of recommendations", 5, 20, 5)
             st.info("The system uses cosine similarity on movie metadata.")
-            
         if not os.path.exists(PREPROCESSED_DATASET_PATH):
             st.error(
                 body = "Preprocessed dataframe doesn't exist.",
