@@ -24,7 +24,13 @@ class DataVectorization:
 
             logger.info("Vectorization of tags started.")
 
-            tfidf = TfidfVectorizer(stop_words='english')
+            tfidf = TfidfVectorizer(
+                stop_words='english', 
+                ngram_range=(1, 3),
+                max_df=0.75, 
+                min_df=1, 
+                sublinear_tf=True, 
+            )
 
             vectors = tfidf.fit_transform(dataframe['all_tags'])
 

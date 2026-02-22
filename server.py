@@ -76,7 +76,7 @@ def main():
         # Sidebar for settings/info
         with st.sidebar:
             st.header("Settings")
-            num_rec = st.slider("Number of recommendations", 5, 20, 10)
+            num_rec = st.slider("Number of recommendations", 5, 20, 5)
             st.info("The system uses cosine similarity on movie metadata.")
             
         if not os.path.exists(PREPROCESSED_DATASET_PATH):

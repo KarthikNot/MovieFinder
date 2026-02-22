@@ -114,14 +114,14 @@ class DataPreprocessing:
 
             logger.info("Data cleaning has started.")
 
-            df['genres'] = df['genres'].apply(self.preprocess_tags, separator = ',', repetitions = 2)
+            df['genres'] = df['genres'].apply(self.preprocess_tags, separator = ',', repetitions = 1)
             df['production_companies'] = df['production_companies'].apply(self.preprocess_tags, separator = ',', repetitions = 3)
-            df['spoken_languages'] = df['spoken_languages'].apply(self.preprocess_tags, separator = ',', repetitions = 3)
-            df['keywords'] = df['keywords'].apply(self.preprocess_tags, separator = ',', repetitions = 2)
+            df['spoken_languages'] = df['spoken_languages'].apply(self.preprocess_tags, separator = ',', repetitions = 1)
+            df['keywords'] = df['keywords'].apply(self.preprocess_tags, separator = ',', repetitions = 1)
             df['overview'] = df['overview'].apply(self.preprocess_tags, repetitions = 1)
 
             cols = [
-                'title',
+                'title', 'title', 'title',
                 'genres',
                 'keywords',
                 'overview',
