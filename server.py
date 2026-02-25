@@ -66,25 +66,21 @@ def main():
     st.markdown("""
         <style>
         /* App layout */
-        .stApp { background-color: #0e1117; color: #e6eef8; }
         .block-container { max-width: 1100px; padding: 1.5rem 2rem; margin: 0 auto; }
 
         /* Typography */
         h1 { color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; font-size: 2.2rem; margin-bottom: 0.2rem; }
         .stCaption { color: #9aa6b2; }
 
-        /* Sidebar */
-        .stSidebar .sidebar-content { background-color: #0f1720; padding: 1rem; border-radius: 10px; }
-        .stSidebar h2, .stSidebar h3 { color: #ffffff; }
 
         /* Buttons */
         .stButton>button { width: 100%; border-radius: 8px; height: 3.2em; background-color:#1f6feb; color:#fff; border: none; box-shadow: 0 6px 18px rgba(31,111,235,0.12); transition: all 0.3s ease;}
         .stButton>button:hover { scale : 1.01; }
 
         /* Recommendation cards */
-        .recommend-card { background-color: #0b1220; border-radius: 10px; padding: 0.6rem; box-shadow: 0 6px 18px rgba(2,6,23,0.6); text-align: center; color: #e6eef8; width: 100%; }
+        .recommend-card { border-radius: 10px; margin: 0.5rem; padding: 0.6rem; box-shadow: 0 6px 12px rgba(2,6,23,0.3); text-align: center; width: 100%; }
         .recommend-card img { width: 100%; height: auto; border-radius: 8px; display:block; margin: 0 auto; }
-        .recommend-title { margin-top: 0.5rem; font-weight: 700; color: #ffffff; font-size: 0.95rem; }
+        .recommend-title { margin-top: 0.5rem; font-weight: 700; font-size: 0.95rem; }
 
         /* Columns responsive - supports the 5-column layout on desktop and wraps on smaller screens */
         .stColumns > div { flex: 0 0 20% !important; max-width: 20% !important; display: flex; justify-content: center; }
