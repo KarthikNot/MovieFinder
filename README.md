@@ -77,5 +77,5 @@ Contributions are welcome! Please follow these steps:
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
-- [TMDB](https://www.themoviedb.org/) for the movie dataset.
+- [TMDB](https://www.kaggle.com/datasets/asaniczka/tmdb-movies-dataset-2023-930k-movies) for the movie dataset.
 - The open-source community for providing amazing tools and libraries.
