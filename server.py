@@ -1,172 +1,114 @@
 import os
-import pickle
-import numpy as np
-import pandas as pd
+import polars as pl
 import streamlit as st
-from typing import List
-from src.constants import *
-from sklearn.metrics.pairwise import cosine_similarity
-
-def recommend_movies(selected_movies : str, top_n : int) -> List[str]:
-    try:
-
-        if not os.path.exists(PREPROCESSED_DATASET_PATH):
-            st.info("Preprocessed dataset doesn't exist.")
-            return []
-
-        preprocessed_data = pd.read_csv(PREPROCESSED_DATASET_PATH, encoding = 'utf-8')
-
-        movie_id = preprocessed_data[preprocessed_data['title'] == selected_movies]['id'].values[0]
-        st.info(f"Selected movie_id: {movie_id}")
-
-        row_idx = preprocessed_data[preprocessed_data['id'] == movie_id].index
-        st.info(f"got the movie: {row_idx}")
-
-        with open(VECTORIZED_MATRIX, 'rb') as file:
-            vectors = pickle.load(file)
-
-        sim_scores = cosine_similarity(vectors[row_idx].reshape(1, -1), vectors).flatten()
-
-        sim_scores[row_idx] = -1
-
-        top_indices = np.argsort(sim_scores)[-top_n:][::-1]
-
-        top_movies = preprocessed_data.loc[top_indices, ['title', 'poster_path']]
-
-        st.info(f"Top Indices: {[int(index) for index in top_indices]}")
-        st.info(f"Top Movies: {[str(movie) for movie in top_movies]}")
-
-        return top_movies
-    except Exception as e:
-        st.error(f"An error occured: {str(e)}")
-    return []
-
+from src.core.models import get_recommender
+from src.core.config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION_NAME
+import chromadb
 
 @st.cache_data
 def get_movie_names():
     try:
-        if not os.path.exists(PREPROCESSED_DATASET_PATH):
-            return []
-        df = pd.read_csv(PREPROCESSED_DATASET_PATH, encoding='utf-8')
-        return list(df['title'].unique())
+        client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIRECTORY)
+        collection = client.get_or_create_collection(name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
+        result = collection.get(include=["metadatas"])
+        titles = sorted({row["title"] for row in result["metadatas"] if row and row.get("title")})
+        return titles
     except Exception as e:
-        st.error(f"An error occured: {str(e)}")
+        st.error(f"Failed to fetch movies from ChromaDB: {str(e)}")
         return []
 
-
 def main():
-    st.set_page_config(
-        page_title='Movie Finder',
-        page_icon='🎬',
-        layout='wide'
-    )
+    st.set_page_config(page_title='MovieFinder', page_icon='🎬', layout='wide')
 
     st.markdown("""
         <style>
-        /* App layout */
         .block-container { max-width: 1100px; padding: 1.5rem 2rem; margin: 0 auto; }
-
-        /* Typography */
-        h1 { color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; font-size: 2.2rem; margin-bottom: 0.2rem; }
+        h1 { color: #ffffff; font-size: 2.2rem; margin-bottom: 0.2rem; }
         .stCaption { color: #9aa6b2; }
-
-
-        /* Buttons */
         .stButton>button { width: 100%; border-radius: 8px; height: 3.2em; background-color:#1f6feb; color:#fff; border: none; box-shadow: 0 6px 18px rgba(31,111,235,0.12); transition: all 0.3s ease;}
         .stButton>button:hover { scale : 1.01; }
-
-        /* Recommendation cards */
-        .recommend-card { border-radius: 10px; margin: 0.5rem; padding: 0.6rem; box-shadow: 0 6px 12px rgba(2,6,23,0.3); text-align: center; width: 100%; }
+        .recommend-card { border-radius: 10px; margin: 0.5rem; padding: 0.6rem; box-shadow: 0 6px 12px rgba(2,6,23,0.3); text-align: center; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; background-color: #1a1c23; border: 1px solid #30363d;}
         .recommend-card img { width: 100%; height: auto; border-radius: 8px; display:block; margin: 0 auto; }
-        .recommend-title { margin-top: 0.5rem; font-weight: 700; font-size: 0.95rem; }
-
-        /* Columns responsive - supports the 5-column layout on desktop and wraps on smaller screens */
+        .recommend-title { margin-top: 0.5rem; font-weight: 700; font-size: 0.95rem; color: #e6edf3;}
+        .recommend-reason { font-size: 0.75rem; color: #8b949e; margin-top: 0.4rem; font-style: italic; text-align: left; padding: 0 5px;}
+        .recommend-score { font-size: 0.8rem; font-weight: bold; color: #58a6ff; margin-top: 0.3rem;}
         .stColumns > div { flex: 0 0 20% !important; max-width: 20% !important; display: flex; justify-content: center; }
         @media (max-width: 1000px) { .stColumns > div { flex: 0 0 33.3333% !important; max-width: 33.3333% !important; } }
         @media (max-width: 700px) { .stColumns > div { flex: 0 0 50% !important; max-width: 50% !important; } }
         @media (max-width: 420px) { .stColumns > div { flex: 0 0 100% !important; max-width: 100% !important; } }
-
-        /* Minor tweaks */
-        [data-testid="stStatusWidget"] { background: transparent; }
-        .stTextInput>div>div>input { border-radius: 8px; }
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("🎬 Movie Recommendation System")
-    st.caption("Find your next favorite movie using Content-Based Filtering.")
+    st.title("🎬 MovieFinder")
+    st.caption("A Production-Grade Hybrid Recommendation System")
 
-    if not os.path.exists(PREPROCESSED_DATASET_PATH):
-        exit("Preprocessed dataset not found. Please run the training pipeline first.")
+    with st.sidebar:
+        st.header("Algorithm Settings")
+        algorithm = st.radio(
+            "Recommendation Algorithm:",
+            ["Hybrid", "TF-IDF (Sparse)", "LLM (Dense)", "Popularity"],
+            help="Hybrid uses Reciprocal Rank Fusion. TF-IDF uses Exact matches. LLM uses semantic matching."
+        )
+        num_rec = st.slider("Number of recommendations", 5, 20, 5)
+        
+        st.markdown("---")
+        st.markdown("### Benchmarks")
+        st.markdown("""
+        **Model Performance**
+        - **Hybrid**: Best Quality
+        - **TF-IDF**: High Relevance, Low Diversity
+        - **LLM**: High Semantic Diversity
+        - **Popularity**: Baseline metric
+        """)
 
-    try:
+    movie_names = get_movie_names()
+    
+    if not movie_names:
+        st.error("No movies found. Please run the training pipeline.")
+        st.stop()
 
-        # Sidebar for settings/info
-        with st.sidebar:
-            st.header("Settings")
-            num_rec = st.slider("Number of recommendations", 5, 20, 5)
-            st.info("The system uses cosine similarity on movie metadata.")
-        if not os.path.exists(PREPROCESSED_DATASET_PATH):
-            st.error(
-                body = "Preprocessed dataframe doesn't exist.",
-                width = 'stretch'
-            )
+    search_query = st.text_input("Search for a movie:")
+    selected_movie = ""
 
-        movie_names = get_movie_names()
+    if search_query:
+        matches = [m for m in movie_names if isinstance(m, str) and search_query.lower() in m.lower()][:20]
+        selected_movie = st.selectbox("Select from matches:", matches)
 
-        search_query = st.text_input("Search for a movie:")
+    btn = st.button("Recommend", type="primary")
 
-        selected_movie = None
-
-        if search_query:
-            matches = [
-                m for m in movie_names
-                if search_query.lower() in m.lower()
-            ][:20]  # limit results
-
-            selected_movie = st.selectbox(
-                "Select from matches:",
-                matches
-            )
-
-        btn = st.button("Recommend", type="primary", width = 'stretch')
-
-        if btn and selected_movie:
-            with st.status("Searching for matches...", expanded=True) as status:
-                st.write("Analyzing metadata...")
-                recommendations = recommend_movies(selected_movie, top_n=num_rec)
-
-            # grid la supiyyu
-            if not recommendations.empty:
-                status.update(label="Recommendations Ready!", state="complete", expanded=False)
-                st.subheader(f"Because you liked {selected_movie}:")
-
-                cols = st.columns(5)
-
-                for idx, (movie, poster_path) in enumerate(recommendations.itertuples(index=False)):
-                    with cols[idx % 5]:
-                        if poster_path:
-                            st.markdown(f"""
-                                <div class='recommend-card'>
-                                    <img src="https://image.tmdb.org/t/p/w500{poster_path}" alt="{movie}" />
-                                    <div class='recommend-title'><b>{movie}</b></div>
-                                </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"""
-                                <div class='recommend-card'>
-                                    <div style='padding:32px 8px; font-size:1.1rem;'>No Image 🎬</div>
-                                    <div class='recommend-title'><b>{movie}</b></div>
-                                </div>
-                            """, unsafe_allow_html=True)
-            else:
-                st.warning("No similar movies found.")
-
-        elif btn and not selected_movie:
+    if btn:
+        if algorithm != "Popularity" and not selected_movie:
             st.error("Please select a movie first!")
-
-    except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
-        st.button("Retry")
+        else:
+            with st.spinner(f"Running {algorithm} Recommender..."):
+                try:
+                    recommender = get_recommender(algorithm)
+                    recommendations = recommender.recommend(selected_movie, top_n=num_rec)
+                    
+                    if not recommendations:
+                        st.warning("No recommendations found.")
+                    else:
+                        st.subheader(f"Recommendations using {algorithm}:")
+                        cols = st.columns(5)
+                        
+                        for idx, rec in enumerate(recommendations):
+                            with cols[idx % 5]:
+                                poster_path = rec.get('poster_path')
+                                poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path not in (None, "") else ""
+                                img_html = f"<img src='{poster}' alt='{rec['title']}' />" if poster else "<div style='padding:32px 8px; font-size:1.1rem; text-align:center;'>No Image 🎬</div>"
+                                
+                                st.markdown(f"""
+                                    <div class='recommend-card'>
+                                        <div>
+                                            {img_html}
+                                            <div class='recommend-title'>{rec['title']} ({rec['year']})</div>
+                                            <div class='recommend-score'>Score: {rec['score']:.4f}</div>
+                                        </div>
+                                        <div class='recommend-reason'>{rec['reason']}</div>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"An error occurred during recommendation: {str(e)}")
 
 if __name__ == "__main__":
     main()

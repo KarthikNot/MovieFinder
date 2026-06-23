@@ -1,9 +1,7 @@
 import os
-import zipfile
-import subprocess
 import kagglehub
-from src.logger import logger
-from src.constants import PREPROCESSED_DATASET_PATH, FITTED_VECTORIZER_PATH, MOVIES_DATASET_PATH
+from src.core.logger import logger
+from src.core.config import *
 from src.components.data_preprocessing import DataPreprocessing
 from src.components.data_vectorization import DataVectorization
 
@@ -20,8 +18,8 @@ class ModelInference():
             dataset_dir = os.path.dirname(MOVIES_DATASET_PATH)
             os.makedirs(dataset_dir, exist_ok=True)
 
-            dataset_path = kagglehub.dataset_download(
-                "asaniczka/tmdb-movies-dataset-2023-930k-movies",
+            kagglehub.dataset_download(
+                KAGGLE_DATASET_LINK,
                 output_dir=dataset_dir,
             )
 
@@ -31,10 +29,7 @@ class ModelInference():
                 logger.error("Dataset file not found after download.")
 
         except Exception as e:
-            logger.error(
-                f"An error occurred during dataset download: {str(e)}",
-                exc_info=True
-            )
+            logger.error(f"An error occurred during dataset download: {str(e)}", exc_info=True)
 
     def end_to_end_pipeline(self):
         try:
@@ -47,19 +42,13 @@ class ModelInference():
                 logger.info("Pipeline failed: dataframe preprocessing failure.")
                 return
 
-            logger.info("Dataframe preprocessed successfully")
-
-            if not os.path.exists(PREPROCESSED_DATASET_PATH):
-                logger.info("Dataframe does not exist")
+            vectorization = data_vectorization.run_vectorization_pipeline()
+            if not vectorization:
+                logger.info("Pipeline failed: vectorization failure.")
                 return
 
-            logger.info("Dataframe loaded.")
+            logger.info("Pipeline completed successfully.")
 
-            data_vectorization.get_vectors()
-
-            if not os.path.exists(FITTED_VECTORIZER_PATH):
-                logger.info("Vectorized does not exist")
-                return
 
         except Exception as e:
             logger.error(f"An error occured: {str(e)}", exc_info = True)
